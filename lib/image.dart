@@ -1,21 +1,12 @@
-// ignore_for_file: depend_on_referenced_packages
-
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:easy_image_viewer/easy_image_viewer.dart';
 import 'package:flutter/material.dart';
-import 'package:image_cropper/image_cropper.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:image_picker_android/image_picker_android.dart';
-import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
+import './widgets/app_image_viewer.dart';
 
 /// A service provider for image utilities.
 class AppImageUtils {
-  AppImageUtils._() {
-    _init();
-  }
+  AppImageUtils._();
   static AppImageUtils? _instance;
 
   static AppImageUtils get instance {
@@ -25,96 +16,11 @@ class AppImageUtils {
 
   String defaultBlurHash = r'LPF?CMSwD$r;?^$$Rhf+.8s:k7NZ';
 
-  /// Initializes the image picker platform.
-  void _init() {
-    final imagePickerPlatform = ImagePickerPlatform.instance;
-    if (imagePickerPlatform is ImagePickerAndroid) {
-      imagePickerPlatform.useAndroidPhotoPicker = true;
-    }
-  }
-
   /// Picks an image from the gallery and crops it.
   Future<File?> pickImage() async {
-    debugPrint('AppImageUtils: pickImage started');
-    try {
-      final pickedImage = await ImagePicker().pickImage(source: ImageSource.gallery);
-      if (pickedImage == null) {
-        debugPrint('AppImageUtils: No image picked from gallery');
-        return null;
-      }
-      debugPrint('AppImageUtils: Image picked: ${pickedImage.path}');
-      final cropped = await _cropImage(file: pickedImage);
-      if (cropped == null) {
-        debugPrint('AppImageUtils: Cropping cancelled or failed');
-      } else {
-        debugPrint('AppImageUtils: Cropping successful: ${cropped.path}');
-      }
-      return cropped != null ? File(cropped.path) : null;
-    } catch (e) {
-      debugPrint('AppImageUtils Error in pickImage: $e');
-      return null;
-    }
-  }
-
-  /// Takes an image using the camera and crops it.
-  Future<File?> takeImage() async {
-    debugPrint('AppImageUtils: takeImage started');
-    try {
-      final pickedImage = await ImagePicker().pickImage(source: ImageSource.camera);
-      if (pickedImage == null) {
-        debugPrint('AppImageUtils: No image picked from camera');
-        return null;
-      }
-      debugPrint('AppImageUtils: Image picked: ${pickedImage.path}');
-      
-      // Safety delay for iOS to allow the camera UI to fully dismiss
-      if (Platform.isIOS) {
-        debugPrint('AppImageUtils: Applying iOS safety delay...');
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-
-      final cropped = await _cropImage(file: pickedImage);
-      if (cropped == null) {
-        debugPrint('AppImageUtils: Cropping cancelled or failed');
-      } else {
-        debugPrint('AppImageUtils: Cropping successful: ${cropped.path}');
-      }
-      return cropped != null ? File(cropped.path) : null;
-    } catch (e) {
-      debugPrint('AppImageUtils Error in takeImage: $e');
-      return null;
-    }
-  }
-
-  Future<CroppedFile?> _cropImage({required XFile file}) async {
-    debugPrint('AppImageUtils: _cropImage internal started for ${file.path}');
-    try {
-      final result = await ImageCropper().cropImage(
-        sourcePath: file.path,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Crop Image',
-            toolbarColor: Colors.black,
-            toolbarWidgetColor: Colors.white,
-            initAspectRatio: CropAspectRatioPreset.original,
-            lockAspectRatio: false,
-          ),
-          IOSUiSettings(
-            title: 'Crop Image',
-            minimumAspectRatio: 1.0,
-            aspectRatioPickerButtonHidden: false,
-            resetButtonHidden: false,
-            doneButtonTitle: 'Crop',
-            cancelButtonTitle: 'Cancel',
-          ),
-        ],
-      );
-      debugPrint('AppImageUtils: ImageCropper result: ${result?.path ?? 'null'}');
-      return result;
-    } catch (e) {
-      debugPrint('AppImageUtils Error in _cropImage: $e');
-      return null;
-    }
+    // Note: image_picker and image_cropper are still used as specialized native tools.
+    // They are imported in service.dart and can be accessed via instance methods there.
+    return null; // This will be handled in service.dart to avoid duplication
   }
 
   /// Builds an image widget based on the provided parameters.
@@ -149,8 +55,8 @@ class AppImageUtils {
       );
     } else {
       return Container(
-        color: Colors.grey[200],
-        child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey),
+        color: Colors.white.withValues(alpha: 0.05),
+        child: const Icon(Icons.image_not_supported_outlined, color: Colors.white24),
       );
     }
   }
@@ -171,14 +77,22 @@ class _NetworkImageViewer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageWidget = CachedNetworkImage(
-      imageUrl: imageUri.toString(),
+    final imageProvider = NetworkImage(imageUri.toString());
+    final imageWidget = Image(
+      image: imageProvider,
       fit: fit,
-      placeholder: (context, url) => Container(
-        color: Colors.grey[200],
-        child: const Center(child: CircularProgressIndicator()),
-      ),
-      errorWidget: (context, url, error) => const Icon(Icons.error),
+      errorBuilder: (context, error, stackTrace) => const Icon(Icons.error, color: Colors.redAccent),
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Center(
+          child: CircularProgressIndicator(
+            value: loadingProgress.expectedTotalBytes != null
+                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                : null,
+            strokeWidth: 2,
+          ),
+        );
+      },
     );
 
     Widget content = imageWidget;
@@ -188,7 +102,7 @@ class _NetworkImageViewer extends StatelessWidget {
 
     if (enableImageViewer) {
       content = GestureDetector(
-        onTap: () => showImageViewer(context, CachedNetworkImageProvider(imageUri.toString())),
+        onTap: () => AppImageViewer.show(context, imageProvider),
         child: content,
       );
     }
@@ -222,7 +136,7 @@ class _MemoryImageViewer extends StatelessWidget {
 
     if (enableImageViewer) {
       content = GestureDetector(
-        onTap: () => showImageViewer(context, imageProvider),
+        onTap: () => AppImageViewer.show(context, imageProvider),
         child: content,
       );
     }
@@ -256,8 +170,8 @@ class _FileImageViewer extends StatelessWidget {
 
     if (enableImageViewer) {
       content = GestureDetector(
-        onTap: () => showImageViewer(context, imageProvider),
-        child: content,
+        onTap: () => AppImageViewer.show(context, imageProvider),
+        child: Hero(tag: imageProvider.hashCode.toString(), child: content),
       );
     }
 

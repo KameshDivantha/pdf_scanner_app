@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../service.dart';
-import '../image.dart';
 
 class AttachmentSheet extends StatefulWidget {
   const AttachmentSheet({
@@ -170,7 +169,7 @@ class _AttachmentSheetState extends State<AttachmentSheet> {
             setState(() => _isProcessing = true);
             try {
               debugPrint('AttachmentSheet: Take Photo tapped');
-              final file = await AppImageUtils.instance.takeImage();
+              final file = await AttachmentService.instance.takeImage();
               debugPrint('AttachmentSheet: takeImage returned: ${file?.path}');
               if (mounted && file != null) {
                 _handleFiles(context, [AttachedFile.fromPath(file.path)]);
@@ -219,7 +218,7 @@ class _AttachmentSheetState extends State<AttachmentSheet> {
           onTap: () async {
             setState(() => _isProcessing = true);
             try {
-              final file = await AppImageUtils.instance.pickImage();
+              final file = await AttachmentService.instance.pickImage();
               if (mounted && file != null) {
                 _handleFiles(context, [AttachedFile.fromPath(file.path)]);
               } else {

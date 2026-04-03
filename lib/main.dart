@@ -1,20 +1,11 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'screens/home_page.dart';
 
-List<CameraDescription> cameras = [];
-
-Future<void> main() async {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  try {
-    cameras = await availableCameras();
-  } on CameraException catch (e) {
-    debugPrint('Camera error: ${e.description}');
-  }
-
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const MyApp());
 }

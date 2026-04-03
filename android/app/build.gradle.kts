@@ -42,3 +42,7 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
+}
