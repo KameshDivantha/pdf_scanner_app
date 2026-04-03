@@ -1,6 +1,6 @@
 # Uncomment this line to define a global platform for your project
 # Platform must be explicitly set for permission_handler macros to work correctly
-platform :ios, '13.0'
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'

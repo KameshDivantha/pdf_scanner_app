@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import './service.dart';
 import './widgets/app_image_viewer.dart';
 
 /// A service provider for image utilities.
@@ -18,9 +19,9 @@ class AppImageUtils {
 
   /// Picks an image from the gallery and crops it.
   Future<File?> pickImage() async {
-    // Note: image_picker and image_cropper are still used as specialized native tools.
-    // They are imported in service.dart and can be accessed via instance methods there.
-    return null; // This will be handled in service.dart to avoid duplication
+    // Note: External image_picker has been replaced with native implementations,
+    // but we use the image_cropper package for professional cropping.
+    return AttachmentService.instance.pickImage();
   }
 
   /// Builds an image widget based on the provided parameters.

@@ -2,11 +2,9 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_cropper/image_cropper.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -31,12 +29,6 @@ class AttachedFile {
   final int? sizeBytes;
 
   factory AttachedFile.fromPath(String filePath) {
-    // Handle potential URI strings from Android native scanner
-    if (filePath.startsWith('content://') || filePath.startsWith('file://')) {
-      // In a real app, you might need to resolve content URIs, 
-      // but for simplicity we assume file paths are provided or handled by File(path)
-    }
-    
     final ext = p.extension(filePath).toLowerCase();
     final AttachmentType type;
     if (['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic'].contains(ext)) {
@@ -75,7 +67,6 @@ class AttachmentService {
   static final AttachmentService instance = AttachmentService._();
 
   static const _channel = MethodChannel('com.example.pdf_scanner_app/scanner');
-  final ImagePicker _picker = ImagePicker();
 
   // ── Document Scanning ───────────────────────────────────────────────────
 
@@ -106,14 +97,10 @@ class AttachmentService {
   Future<File?> takeImage() async {
     debugPrint('AttachmentService: takeImage started');
     try {
-      final pickedImage = await _picker.pickImage(source: ImageSource.camera, imageQuality: 90);
-      if (pickedImage == null) return null;
+      final String? path = await _channel.invokeMethod('takeImage');
+      if (path == null) return null;
 
-      if (Platform.isIOS) {
-        await Future.delayed(const Duration(milliseconds: 500));
-      }
-
-      return await cropImage(pickedImage.path);
+      return await cropImage(path);
     } catch (e) {
       debugPrint('AttachmentService error in takeImage: $e');
       return null;
@@ -123,10 +110,10 @@ class AttachmentService {
   Future<File?> pickImage() async {
     debugPrint('AttachmentService: pickImage started');
     try {
-      final pickedImage = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
-      if (pickedImage == null) return null;
+      final String? path = await _channel.invokeMethod('pickImage');
+      if (path == null) return null;
 
-      return await cropImage(pickedImage.path);
+      return await cropImage(path);
     } catch (e) {
       debugPrint('AttachmentService error in pickImage: $e');
       return null;
@@ -136,8 +123,9 @@ class AttachmentService {
   Future<List<AttachedFile>> pickMultiFromGallery() async {
     debugPrint('AttachmentService: pickMultiFromGallery started');
     try {
-      final images = await _picker.pickMultiImage(imageQuality: 90);
-      return images.map((e) => AttachedFile.fromPath(e.path)).toList();
+      final List? results = await _channel.invokeMethod('pickMultiImage');
+      if (results == null) return [];
+      return results.map((e) => AttachedFile.fromPath(e.toString())).toList();
     } catch (e) {
       debugPrint('AttachmentService error in pickMultiFromGallery: $e');
       return [];
@@ -149,12 +137,12 @@ class AttachmentService {
   Future<AttachedFile?> pickFile() async {
     debugPrint('AttachmentService: pickFile started');
     try {
-      final result = await FilePicker.platform.pickFiles();
-      if (result != null && result.files.single.path != null) {
-        debugPrint('AttachmentService: FilePicker returned: ${result.files.single.path}');
-        return AttachedFile.fromPath(result.files.single.path!);
+      final String? path = await _channel.invokeMethod('pickFile');
+      if (path != null) {
+        debugPrint('AttachmentService: Native picker returned: $path');
+        return AttachedFile.fromPath(path);
       }
-      debugPrint('AttachmentService: FilePicker returned null');
+      debugPrint('AttachmentService: Native picker returned null');
       return null;
     } catch (e) {
       debugPrint('AttachmentService error in pickFile: $e');
@@ -179,7 +167,6 @@ class AttachmentService {
           ),
           IOSUiSettings(
             title: 'Crop Image',
-            minimumAspectRatio: 1.0,
           ),
         ],
       );
@@ -199,7 +186,6 @@ class AttachmentService {
       final frame = await codec.getNextFrame();
       final src = frame.image;
 
-      // 90° clockwise: new width = old height, new height = old width
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       canvas.translate(src.height.toDouble(), 0);
@@ -228,7 +214,6 @@ class AttachmentService {
   Future<File> buildPdf(List<String> imagePaths) async {
     final pdf = pw.Document();
     for (var path in imagePaths) {
-      // Basic URI cleanup for Android (remove file:// prefix if present for dart:io)
       if (path.startsWith('file://')) {
         path = Uri.parse(path).toFilePath();
       }
