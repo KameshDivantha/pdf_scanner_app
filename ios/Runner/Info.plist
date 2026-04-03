@@ -66,5 +66,11 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera access to scan documents and take photos for service, receipts, and gallery attachments.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We need gallery access to select existing photos for your records and gallery.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We need microphone access to support video capture if required by your device camera.</string>
 </dict>
 </plist>
